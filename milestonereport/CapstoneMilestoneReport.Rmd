@@ -1,0 +1,73 @@
+---
+title: "Capstone Project Milestone Report - Exploratory Analysis"
+author: "Dwayne Dreakford"
+date: "8/6/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview and Objectives
+This milestone report summarizes my early thoughts and activities around the Data Science Specialization Capstone Project. The goals for this milestone are to:
+
+* Download, load, initially explore the provided data.
+* Topically understand the most relevant theory and oft-applied techniques for "next word prediction" and, more generally, foundational principles of natural language processing.
+* Choose an approach to guide further activities (i.e., training data selection, model building, model evaluation, coding/implemening the prediction application).
+* Highlight pertinent summary statistics of the provided data, given the chosen approach.
+
+## Download and Explore the Data
+For those interested, I've shared my data loading code
+
+## Understand the Theory and Choose and Approach
+
+tm Package Documentation
+Google search (came across presentations, short papers, student projects)
+Foundations of Statistical Natural Language Processing (1999)
+Speech and Language Processing (2014)
+
+Identify, topically understand theory, models and techniques used to "predict the next word"
+  Understand requirements for predictive models based on n-grams
+  Training data/corpus: genre/category/source of data, how much needed
+  Explore, capture and evaluate n-gram frequencies and distributions
+    (four-gram, trigram, bigram, unigram)
+
+Backoff based on N-grams (trigram, bigram, unigram)
+Amount of data available and scalability
+My intuition, project objectives/scope, resources
+
+## Highlight Pertinent Statistics
+
+## Next Steps
+
+
+
+## Training Data / Corpus Characteristics
+
+Emphasis is in support of the chosen approach
+
+Exhibits:
+  Frequencies
+  Frequencies of frequencies
+  Top N-grams
+
+Data Loading and Preprocessing
+
+## Next Steps
+
+Building and Tuning the predictive models (out of scope for this task)
+  Best use of training data: cross-validation (dev test data, test data)
+  Prediction/Execution
+  Evaluation of model
+
+# Appendix
+
+## Data Loading Code
+
+
+
+
+
+
+
