@@ -63,29 +63,29 @@ Included here are summary statistics and characteristics of the provided data se
 **Frequency Distributions (sample size: 5000 lines)**
 ```{r echo=FALSE, cache=TRUE, message=FALSE}
     par(mfrow=c(3,1))
-    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=3)
+    freqList <- frequencyList(sampleSize = 5000, n=3)
     distPlot(freqList, "Trigram")
-    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=2)
+    freqList <- frequencyList(sampleSize = 5000, n=2)
     distPlot(freqList, "Bigram")
-    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=1)
+    freqList <- frequencyList(sampleSize = 5000, n=1)
     distPlot(freqList, "Unigram")
 ```
 
 **25 Most Frequent and Rarely Seen Trigrams (sample size: 5000 lines)**
 ```{r echo=FALSE, cache=TRUE, message=FALSE}
-    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=3)
+    freqList <- frequencyList(sampleSize = 5000, n=3)
     freqPlot(freqList)
 ```
 
 **25 Most Frequent and Rarely Seen Bigrams (sample size: 5000 lines)**
 ```{r echo=FALSE, cache=TRUE, message=FALSE}
-    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=2)
+    freqList <- frequencyList(sampleSize = 5000, n=2)
     freqPlot(freqList)
 ```
 
 **25 Most Frequent and Rarely Seen Unigrams (sample size: 5000 lines)**
 ```{r echo=FALSE, cache=TRUE, message=FALSE}
-    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=1)
+    freqList <- frequencyList(sampleSize = 5000, n=1)
     freqPlot(freqList)
 ```
 
