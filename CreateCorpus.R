@@ -63,11 +63,13 @@ preprocMCorpus <- function(mCorpus) {
     mCorpus <- tm_map(mCorpus, stripWhitespace)
 
     # Other cleanup (as we learn more about the training data)...
-
     mCorpus
 }
 
 # Create a corpus from a sampling of the media data.
+#
+# TODO: Use a variant of this to separate and load training, validation
+# and test data sets / corpora.
 #
 sampleMediaCorpus <- function(sampleSize = 100, linesToSkip = 0,
                               mediaSource = c("blogs", "news", "twitter")) {
@@ -115,62 +117,79 @@ ngramTokenizer <- function(n) {
 # Returns a list where the elements are the model results of various
 # quick and dirty analyses, e.g. most/least freqent words,...
 #
-# Some observations:
-# - Most of the most frequent words have no associations >corlimit=0.5
-# - Significant portion of least frequent words have associations >corlimit=0.5
-# - Probably worthwhile to run an algorithm to find most frequently associated words.
-#
 exploreDTM <- function(dtm) {
     resultList = list()
 
-    # Most and least frequent words
+    # Most and least frequent n-grams
     wFreq <- colSums(as.matrix(dtm))
-    resultList[["mostfreq"]] <- head(wFreq[order(wFreq, decreasing = TRUE)], 50)
-    resultList[["leastfreq"]] <- tail(wFreq[order(wFreq, decreasing = TRUE)], 50)
-
-    # Most frequent associated words
-    # resultList[["mostfreqassoc"]] <- list()
-    # for (w in names(wFreq[order(wFreq, decreasing = TRUE)])) {
-    #     assocs <- findAssocs(dtm, w, 0.5)[[1]]
-    #     if (length(assocs) > 0) {
-    #         resultList[["mostfreqassoc"]][[w]] <- assocs
-    #         if ( length(resultList[["mostfreqassoc"]]) == 50 ) break
-    #     }
-    # }
-    # Least frequent associated words
-    # resultList[["leastfreqassoc"]] <- list()
-    # for (w in names(wFreq[order(wFreq)])) {
-    #     assocs <- findAssocs(dtm, w, 0.5)[[1]]
-    #     if (length(assocs) > 0) {
-    #         resultList[["leastfreqassoc"]][[w]] <- assocs
-    #         if ( length(resultList[["leastfreqassoc"]]) == 50 ) break
-    #     }
-    # }
-
+    resultList[["mostfreq"]] <- head(wFreq[order(wFreq, decreasing = TRUE)], 25)
+    resultList[["leastfreq"]] <- tail(wFreq[order(wFreq, decreasing = TRUE)], 25)
+    resultList[["freqdist"]] <- wFreq[order(wFreq, decreasing = TRUE)]
+    
     resultList
 }
 
-exploratoryPlots <- function(dtmAnalysis) {
+# Create a list of elements used to facilitate n-gram frequency evaluation.
+# (via plots, etc).
+#
+# Returns a resultList with the following elements:
+#
+# - resultList[["mostfreq"]] - The 50 most frequently occuring n-grams.
+# This is a named numeric vector, where the names are the n-gram
+# contents, and the elements are the frequency/count of the n-gram's 
+# appearance in the data.
+#
+# - resultList[["leastfreq"]] - The 50 least frequently occuring n-grams.
+# This is a named numeric vector, where the names are the n-gram
+# contents, and the elements are the frequency/count of the n-gram's 
+# appearance in the data.
+# 
+#
+frequencyList <- function(sampleSize = 1000, linesToSkip = 0, mediaSource = "blogs", n) {
+    mCorpus <- sampleMediaCorpus(sampleSize, linesToSkip, mediaSource)
+    dtm <- dtmFromMCorpus(mCorpus, n)
+    freqList <- exploreDTM(dtm)
+    freqList
+}
 
-    WFreq <- data.frame("word"=factor(names(dtmAnalysis$mostfreq), names(dtmAnalysis$mostfreq)),
-                        "freq"=dtmAnalysis$mostfreq)
-    g <- ggplot(WFreq, aes(x=word, y=freq)) + geom_col() +
+#
+# Run the exploratory analysis. This function is here to document the
+# series of steps.
+#
+runExploratoryAnalysis <- function() {
+    # Trigrams
+    triFreqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=3)
+    freqPlot(triFreqList)
+    # Bigrams
+    biFreqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=2)
+    freqPlot(biFreqList)
+    # Unigrams
+    uniFreqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=1)
+    freqPlot(uniFreqList)
+}
+
+distPlot <- function(dtmAnalysis, whichGram) {
+    plot(x=seq(1,length(dtmAnalysis$freqdist)), y=dtmAnalysis$freqdist, 
+         type="l", xlab="", ylab="", main=whichGram)
+}
+
+freqPlot <- function(dtmAnalysis) {
+    mostFreq <- data.frame("ngram"=factor(names(dtmAnalysis$mostfreq), names(dtmAnalysis$mostfreq)),
+                        "Frequency"=dtmAnalysis$mostfreq,
+                        "which"=rep("Most", length(dtmAnalysis$mostfreq)))
+    leastFreq <- data.frame("ngram"=factor(names(dtmAnalysis$leastfreq), names(dtmAnalysis$leastfreq)),
+                           "Frequency"=dtmAnalysis$leastfreq,
+                           "which"=rep("Least", length(dtmAnalysis$leastfreq)))
+    
+    mlFreq <- rbind(mostFreq, leastFreq)
+    
+    g <- ggplot(mlFreq, aes(x=ngram, y=Frequency)) + geom_col() +
         theme(axis.text.x = element_text(angle = 90))
     g
 }
 
-# Create a corpus
-# Export a DTM
-# Analyze the DTM
-runTests <- function() {
-    mCorpus <- sampleMediaCorpus(sampleSize = 300)
 
-    dtm2 <- dtmFromMCorpus(mCorpus, n=2)
-    dtmAnalysis2 <- exploreDTM(dtm2)
 
-    dtm3 <- dtmFromMCorpus(mCorpus, n=3)
-    dtmAnalysis3 <- exploreDTM(dtm3)
-}
 
 
 

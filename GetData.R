@@ -69,6 +69,8 @@ mListToDF <- function(mList) {
     resultDF
 }
 
+# --- The following functions help answer Week 1 Quiz questions ---
+
 # Id longest line among all the loaded datasets
 longestLine <- function(fullData) {
     maxIdxs <- sapply(fullData, function(x) which.max(nchar(x)))
