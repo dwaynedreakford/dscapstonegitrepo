@@ -7,63 +7,104 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
+source(paste0(projDir, "capstonegitrepo/GetData.R"))
+source(paste0(projDir, "capstonegitrepo/CreateCorpus.R"))
 ```
 
 # Overview and Objectives
 This milestone report summarizes my early thoughts and activities around the Data Science Specialization Capstone Project. The goals for this milestone are to:
 
 * Download, load, initially explore the provided data.
-* Topically understand the most relevant theory and oft-applied techniques for "next word prediction" and, more generally, foundational principles of natural language processing.
+* Topically understand the most relevant theory and oft-applied techniques for "next word prediction" and, more generally, foundational principles of natural language processing (NLP).
 * Choose an approach to guide further activities (i.e., training data selection, model building, model evaluation, coding/implemening the prediction application).
 * Highlight pertinent summary statistics of the provided data, given the chosen approach.
 
 ## Download and Explore the Data
-For those interested, I've shared my data loading code
+The data for this and future tasks is available [here](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip). All of my code is available on [GitHub](https://github.com/dwaynedreakford/dscapstonegitrepo.git).
 
-## Understand the Theory and Choose and Approach
+My data acquisition code is in [GetData.R](https://github.com/dwaynedreakford/dscapstonegitrepo/blob/master/GetData.R) 
 
-tm Package Documentation
-Google search (came across presentations, short papers, student projects)
-Foundations of Statistical Natural Language Processing (1999)
-Speech and Language Processing (2014)
+* The function, `loadProjData`, makes use of the [reader](https://cran.r-project.org/web/packages/reader/index.html) package to conveniently load the data.
+* The covenience function, `sampleProjData`, loads smaller subsets of the data. This helped me to more quickly iterate on code to manipulate, explore and use the data for future tasks, such as corpus creation.
 
-Identify, topically understand theory, models and techniques used to "predict the next word"
-  Understand requirements for predictive models based on n-grams
-  Training data/corpus: genre/category/source of data, how much needed
-  Explore, capture and evaluate n-gram frequencies and distributions
-    (four-gram, trigram, bigram, unigram)
+I used the Week 1 Quiz to verify that I successfully completed the data acquisition task (see the section of the [GetData.R](https://github.com/dwaynedreakford/dscapstonegitrepo/blob/master/GetData.R) labeled "--- The following functions help answer Week 1 Quiz questions ---").
 
-Backoff based on N-grams (trigram, bigram, unigram)
-Amount of data available and scalability
-My intuition, project objectives/scope, resources
+## Understand the Theory and Foundational Topics
+As recommended by the Data Science Capstone Project course creators, I reviewed the [tm](https://cran.r-project.org/web/packages/tm/index.html) package [vignettes](https://cran.r-project.org/web/packages/tm/vignettes/extensions.pdf) and [reference manual](https://cran.r-project.org/web/packages/tm/tm.pdf) for an introduction to common objectives, issues and applications of NLP. This tour, supplemented by the [NLP Cran Task View](https://cran.r-project.org/view=NaturalLanguageProcessing) and copious use of Google Search to investigate related topics gave me enough orientation get myself into trouble :-). 
 
-## Highlight Pertinent Statistics
+Portions of the following books have been instrumental in helping me gain enough foundational understanding to choose an initial approach for the task of "predicting the next word". In time, I hope to read and review these in their entireity. For now, the theme of "just enough to be dangerous" must reign.
+
+* *Foundations of Statistical Natural Language Processing* (1999)
+* *Speech and Language Processing* (2014)
+
+
+## High Level Approach
+Given insight gained thus far, our project scope and the limits of my burgeoning intuition on these topics, I have chosen the following following approach, which I will iteratively improve (or outright change) as I learn and proceed toward project completion:
+
+**Use an n-gram based approach to build and train models to "predict the next word"** [to be typed by a user or encountered in text]. The resulting application will predict the next word based on the most recently typed or encountered words. Theory, verified research and use in applications have proven the use of n-grams to be an effective, practical and scalable approach for this task. 
+
+**Where possible, predict the next word based on the previous two words encountered**. Where this is not possible, predict based on the previous single word. If necessary, predict the next word based on the most commonly typed/entered word (i.e., without regard to the previous word). In NLP parlance, we will base our approach on trigrams and employ a "back off" algorithm that will make use of bigrams and unigrams where necessary. The need to back off arises when we encounter words that our prediction model has not yet "seen" (i.e., been trained to use as input). I've decided on this aspect of the approach given the amount data provided for training and testing our models, my own experience with mobile applications (e.g., the iOS Message app) and what I've gleaned from the aforementioned sources.
+
+**Use discounting and smoothing technique (e.g. Good-Turing or Kneser-Ney) to enable our predictive model to deal with word sequences (n-grams) not yet seen in our training data**. Given the positive reports on the predictive performance of the most well-known techniques and the scope of this effort, I will likely select a well-regarded technique I am most confident in coding.
+
+**Use a back off technique, combined with discounting and smoothing, for a practical, effective prediction model**. The experts say it best... "For n-gram models, suitably combining various models of different orders is in general the secret to success." (Manning and Schütze, 1999, p. 218)
+
+**Use the tm package and framework** to build corpora from the data provided, guide preprocessing and create the ultra-useful construct, document-term (or term-document) matrices. Leverage the thoughtwork and experience encapsulated in this framework, and utilize its inherent capability to incorporate extensions for such tasks as tokenizing text into n-grams and using a database to work with data sets that are too large to be loaded into RAM. See the file [CreateCorpus.R](https://github.com/dwaynedreakford/dscapstonegitrepo/blob/master/CreateCorpus.R) for code that accomplishes these and other tasks.
+
+## Highlight Pertinent Statistics of our Data
+Included here are summary statistics and characteristics of the provided data set that have informed my approach to this point. The views on the most frequent and rare n-grams give an indication on the distribution of n-gram frequencies as well as provide a sanity check of the n-grams tokenized from the data.
+
+*Note:* For this checkpoint, I am basing the following on a subset of the provided data. As we get into model building, training, tuning, cross-validation and the like, I will aim to use all usable (and desirable) data provided.
+
+####Frequencies
+
+**Frequency Distributions (sample size: 5000 lines)**
+```{r echo=FALSE, cache=TRUE, message=FALSE}
+    par(mfrow=c(3,1))
+    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=3)
+    distPlot(freqList, "Trigram")
+    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=2)
+    distPlot(freqList, "Bigram")
+    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=1)
+    distPlot(freqList, "Unigram")
+```
+
+**25 Most Frequent and Rarely Seen Trigrams (sample size: 5000 lines)**
+```{r echo=FALSE, cache=TRUE, message=FALSE}
+    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=3)
+    freqPlot(freqList)
+```
+
+**25 Most Frequent and Rarely Seen Bigrams (sample size: 5000 lines)**
+```{r echo=FALSE, cache=TRUE, message=FALSE}
+    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=2)
+    freqPlot(freqList)
+```
+
+**25 Most Frequent and Rarely Seen Unigrams (sample size: 5000 lines)**
+```{r echo=FALSE, cache=TRUE, message=FALSE}
+    freqList <- frequencyList(sampleSize = 5000, mediaSource = "blogs", n=1)
+    freqPlot(freqList)
+```
+
 
 ## Next Steps
 
+**Decide which data to use for training and cross-validation**
+I'm not yet settled on the extent to which I will use each of the three types of media provided with the data for this project. While blogs should be most indicative of personal writing style, a next-word prediction app should help with tweeting and other forms of social media, as well, where people are less formal and more inventive in their word use.
 
+**Preprocessing improvements**
+Sentence delineation is important in next-word prediction. The words most commonly entered after the end of a sentence should not be predicted based on words at the end of the previous sentence. So I'll need to add end-of-sentence markers before stripping the input data of punctuation.
 
-## Training Data / Corpus Characteristics
+Foreign language words... I'm not yet sure what to do about words/n-grams of foreign languages.  I guess I'd better keep reading and brainstorming :-).
 
-Emphasis is in support of the chosen approach
+**More efficiently process large data sets**
+Make use of the database capability of `tm` and implement model building and training so that not everything needs to be loaded into RAM at once.
 
-Exhibits:
-  Frequencies
-  Frequencies of frequencies
-  Top N-grams
+**Building and Tuning the predictive models (out of scope for this milestone report)**
 
-Data Loading and Preprocessing
-
-## Next Steps
-
-Building and Tuning the predictive models (out of scope for this task)
-  Best use of training data: cross-validation (dev test data, test data)
-  Prediction/Execution
-  Evaluation of model
-
-# Appendix
-
-## Data Loading Code
 
 
 
