@@ -13,9 +13,68 @@ downloadProjData <- function(dataUrl = courseDataUrl,
     unzip(dataFileNm)
 }
 
+# Partition the data files into train, validation and test sets.
+# Split each media file into train, validation and test files, 
+# where:
+# - [file]_train.txt is approximately 80% the size of [file].txt
+# - [file]_val.txt is approximately 10% the size of [file].txt
+# - [file]_test.txt is approximately 10% the size of [file].txt
+#
+# The split is done based on number of lines in each file,
+# as opposed to the exact size of the files, so the size
+# delineations are approximate.
+#
+# trainDir <- paste0(dataDir, "train/")
+# valDir <- paste0(dataDir, "val/")
+# testDir <- paste0(dataDir, "test/")
+#
+partitionProjData <- function(workDir = dataDir,
+                              mLang = "en_US",
+                              srcMedium = c("blogs", "news", "twitter")) {
+    
+    setwd(workDir)
+    srcDir <- paste0(workDir, "final/", mLang, "/")
+    for(medium in srcMedium) {
+        # Read the whole file into a char vector.
+        srcFile <- paste0(srcDir, mLang, ".", medium, ".txt")
+        print(paste0("Reading: ", srcFile))
+        srcChars <- reader::reader(srcFile)
+        
+        # Shuffle the char vector and write the appropriate
+        # portions to training, validation and test files.
+        # This is valid because the predictive model takes
+        # advantage of the Markovian assumption, that the
+        # next word can be predicted based solely on the
+        # previous few words.
+        set.seed(6239)
+        idxList = list()
+        allIdxs <- sample(1:length(srcChars))
+        idxList[["train"]] <- head(allIdxs, floor(length(allIdxs) * 0.8))
+        idxList[["val"]] <- tail(allIdxs, floor(length(allIdxs) * 0.2))
+        idxList[["test"]] <- tail(idxList[["val"]], floor(length(idxList[["val"]]) * 0.5))
+        idxList[["val"]] <- head(idxList[["val"]], floor(length(idxList[["val"]]) * 0.5))
+        
+        # Write the training, validation and test files.
+        for ( partition in c("train", "val", "test")  ) {
+            outDir <- paste0(dataDir, partition, "/")
+            if ( !dir.exists(outDir) ) {
+                if (!dir.create(outDir)) stop(paste0(geterrmessage(), ": Could not create ", outDir))
+            }
+            outFile <- paste0(outDir, medium, "_", partition, ".txt")
+            print(paste0("Writing: ", outFile))
+            write(srcChars[idxList[[partition]]], outFile)
+        }
+        
+        rm(srcChars)
+        rm(allIdxs)
+        rm(idxList)
+    }
+}
+
 # Loads the full content from the specified sources and
 # returns a list of character vectors, where the list elements are
-# named by the data source from which the data was loaded e.g.:
+# named by the data source from which the data was loaded.
+#
 # If all media sources are loaded via: projData <- loadProjData()
 # then the text loaded from the blogs file is accessible via:
 # projData[["blogs"]]
@@ -27,9 +86,9 @@ loadProjData <- function(workDir = dataDir,
     tgtDir <- paste0(workDir, "final/", mLang, "/")
     resultList = list()
     for(medium in srcMedium) {
-        tgtFile <- paste0(tgtDir, mLang, ".", medium, ".txt")
-        print(tgtFile)
-        resultList[[medium]] <- reader::reader(tgtFile)
+        srcFile <- paste0(tgtDir, mLang, ".", medium, ".txt")
+        print(srcFile)
+        resultList[[medium]] <- reader::reader(srcFile)
     }
     resultList
 }
@@ -45,9 +104,9 @@ sampleProjData <- function(workDir = dataDir,
     tgtDir <- paste0(workDir, "final/", mLang, "/")
     resultList = list()
     for(medium in srcMedium) {
-        tgtFile <- paste0(tgtDir, mLang, ".", medium, ".txt")
-        print(tgtFile)
-        resultList[[medium]] <- n.readLines(tgtFile, nLines, skip = skipLines, header = FALSE)
+        srcFile <- paste0(tgtDir, mLang, ".", medium, ".txt")
+        print(srcFile)
+        resultList[[medium]] <- n.readLines(srcFile, nLines, skip = skipLines, header = FALSE)
     }
     resultList
 }
