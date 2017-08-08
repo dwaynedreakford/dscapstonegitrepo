@@ -6,6 +6,7 @@ library(ggplot2)
 
 projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
 dataDir <- paste0(projDir, "data/")
+useDB = TRUE
 pCorpDBNm = "mCorpus.db"
 
 # mLang: *one* of "en_US", "de_DE", "fi_FI", "ru_RU"
@@ -72,13 +73,17 @@ preprocMCorpus <- function(mCorpus) {
 # and test data sets / corpora.
 #
 sampleMediaCorpus <- function(sampleSize = 100, linesToSkip = 0,
-                              mediaSource = c("blogs", "news", "twitter")) {
+                              mediaSource = c("blogs", "news", "twitter"),
+                              usDB = FALSE) {
     mList <- sampleProjData(nLines = sampleSize, skipLines = linesToSkip,
                             srcMedium = mediaSource)
     mDF <- mListToDF(mList)
-    mCorpus <- vCorpusFromDF(mDF)
+    if ( usDB == TRUE )
+        mCorpus <- pCorpusFromDF(mDF)
+    else
+        mCorpus <- vCorpusFromDF(mDF)
+    
     mCorpus <- preprocMCorpus(mCorpus)
-
     mCorpus
 }
 
