@@ -4,27 +4,48 @@ library(filehash)
 library(dplyr)
 library(ggplot2)
 
-projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
-dataDir <- paste0(projDir, "data/")
-useDB = TRUE
-pCorpDBNm = "mCorpus.db"
+#
+# Data location and loading is performed via functions in GetData.R.
+# A typical flow would be:
+#
+# 1. Locate and load data from text files into memory (see GetData.R).
+# 2. Create a corpus from the loading data. I recommend the functions,
+#    sampleMediaCorpus() and fullMediaCorpus() over corpusFromFiles().
+#    Preprocessing of the data is performed during this step, via
+#    preProcMCorpus().
+# 3. Create a document-term matrix, via dtmFromMCorpus().
+# 4. Perform further analysis (e.g., via exploreDTM() and related).
+#
 
-# mLang: *one* of "en_US", "de_DE", "fi_FI", "ru_RU"
+mCorpDBNm = "mCorpus"
+
+# The file, GetData.R, should first be sourced to make the
+# data locating and loading routines accessible.
+#
 # srcMedium: any combination of c('blogs', 'news', 'twitter')
 #
-corpusFromFiles <- function(workDir = dataDir,
-                         mLang = "en_US",
-                         srcMedium = c("blogs", "news", "twitter")) {
+# partition: specifies that data should be loaded
+# from the training, validation or test data partition. The valid
+# values are "train", "val" or "test", respectively.
+#
+corpusFromFiles <- function(
+                        srcMedium = c("blogs", "news", "twitter"),
+                        partition = "train") {
 
-    tgtDir <- paste0(workDir, "final/", mLang, "/")
+    srcDir <- getPartitionDir(partition)
+    print(paste0("Data partition directory: ", srcDir))
+    setwd(srcDir)
     fPtrn = NULL
     if ( length(srcMedium) > 0 ) {
         filterBase <- paste(srcMedium, collapse = "|")
-        fPtrn <- paste0("(", filterBase, ")", "\\.txt$")
+        fPtrn <- paste0("(", filterBase, ")", ".*\\.txt$")
+        print(paste0("Source file filter: ", fPtrn))
     }
-    setwd(workDir)
-    mCorpus <- PCorpus(DirSource(tgtDir, pattern = fPtrn),
-                       dbControl = list(dbName=pCorpDBNm, dbType="DB1"))
+    corpDBNm <- paste0(mCorpDBNm, "_", partition, ".db")
+    print(paste0("Perm corpus db name: ", corpDBNm))
+    
+    mCorpus <- PCorpus(DirSource(srcDir, pattern = fPtrn),
+                       dbControl = list(dbName=corpDBNm, dbType="DB1"))
     mCorpus <- preprocMCorpus(mCorpus)
     mCorpus
 }
@@ -36,11 +57,18 @@ vCorpusFromDF <- function(sourceDF,
 }
 
 pCorpusFromDF <- function(sourceDF,
-                         srcMedium = c("blogs", "news", "twitter")) {
+                         srcMedium = c("blogs", "news", "twitter"),
+                         partition = "train") {
+
+    dbDir <- getPartitionDir(partition)
+    print(paste0("Perm corpus directory: ", dbDir))
+    setwd(dbDir)
+    corpDBNm <- paste0(mCorpDBNm, "_", partition, ".db")
+    print(paste0("Perm corpus name: ", corpDBNm))
+    
     sourceDF <- filter(sourceDF, msource %in% srcMedium)
-    setwd(dataDir)
     mCorpus <- PCorpus(VectorSource(sourceDF$mdata),
-                       dbControl = list(dbName=pCorpDBNm, dbType="DB1"))
+                       dbControl = list(dbName=corpDBNm, dbType="DB1"))
 }
 
 preprocMCorpus <- function(mCorpus) {
@@ -74,11 +102,12 @@ preprocMCorpus <- function(mCorpus) {
 #
 sampleMediaCorpus <- function(sampleSize = 100, linesToSkip = 0,
                               mediaSource = c("blogs", "news", "twitter"),
-                              usDB = FALSE) {
+                              dataPartition = "train",
+                              useDB = FALSE) {
     mList <- sampleProjData(nLines = sampleSize, skipLines = linesToSkip,
-                            srcMedium = mediaSource)
+                            srcMedium = mediaSource, partition = dataPartition)
     mDF <- mListToDF(mList)
-    if ( usDB == TRUE )
+    if ( useDB == TRUE )
         mCorpus <- pCorpusFromDF(mDF)
     else
         mCorpus <- vCorpusFromDF(mDF)
@@ -89,9 +118,10 @@ sampleMediaCorpus <- function(sampleSize = 100, linesToSkip = 0,
 
 # Create a corpus from all of the available media data.
 #
-fullMediaCorpus <- function(mediaSource = c("blogs", "news", "twitter")) {
+fullMediaCorpus <- function(mediaSource = c("blogs", "news", "twitter"), 
+                            dataPartition = "train") {
 
-    mList <- loadProjData(srcMedium = mediaSource)
+    mList <- loadProjData(srcMedium = mediaSource, partition = dataPartition)
     mDF <- mListToDF(mList)
     mCorpus <- pCorpusFromDF(mDF)
     mCorpus <- preprocMCorpus(mCorpus)
