@@ -116,7 +116,7 @@ loadProjData <- function(workDir = dataDir,
     srcDir <- getPartitionDir(partition)
     resultList = list()
     for(medium in srcMedium) {
-        srcFile <- getMDataFileNm(srcDir, srcMedium, partition)
+        srcFile <- getMDataFileNm(srcDir, medium, partition)
         print(paste0("Loading from file: ", srcFile))
         resultList[[medium]] <- reader::reader(srcFile)
     }
