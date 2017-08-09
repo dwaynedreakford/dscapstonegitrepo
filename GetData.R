@@ -1,9 +1,24 @@
 library(reader)
 
+# The overall data acquisition flow is:
+#
+# 1. downloadProjData()
+# 2. partitionProjData() - into separate files for training, validation and test
+# 3. loadProjData() or sample projData() - into in-memory character vectors
+#
+# The resulting list(s) of character vectors can be transformed into
+# a data frame via mListToDF(). This form is useful to provide input to
+# NLP data mining routines, like those of the tm package. 
+#
+# Functions defined in CreateCorpus.R make use of those defined here
+# to load the data from flat (.txt) files and create corpora, document-
+# term matrices and perform further analysis.
+#
+
 courseDataUrl <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
 dataFileNm <- "Coursera-SwiftKey.zip"
 projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
-dataDir <- paste0(projDir, "/data/")
+dataDir <- paste0(projDir, "data/")
 
 # Download and unzip the course data files
 downloadProjData <- function(dataUrl = courseDataUrl,
@@ -56,11 +71,11 @@ partitionProjData <- function(workDir = dataDir,
         
         # Write the training, validation and test files.
         for ( partition in c("train", "val", "test")  ) {
-            outDir <- paste0(dataDir, partition, "/")
+            outDir <- getPartitionDir(partition)
             if ( !dir.exists(outDir) ) {
                 if (!dir.create(outDir)) stop(paste0(geterrmessage(), ": Could not create ", outDir))
             }
-            outFile <- paste0(outDir, medium, "_", partition, ".txt")
+            outFile <- getMDataFileNm(outDir, medium, partition)
             print(paste0("Writing: ", outFile))
             write(srcChars[idxList[[partition]]], outFile)
         }
@@ -71,9 +86,23 @@ partitionProjData <- function(workDir = dataDir,
     }
 }
 
+getPartitionDir <- function(partition) {
+    pDir <- paste0(dataDir, partition, "/")
+    pDir
+}
+
+getMDataFileNm <- function(pDir, medium, partition) {
+    pFile <- paste0(pDir, medium, "_", partition, ".txt")
+    pFile
+}
+
 # Loads the full content from the specified sources and
 # returns a list of character vectors, where the list elements are
 # named by the data source from which the data was loaded.
+#
+# The `partition` argument specifies that data should be loaded
+# from the training, validation or test data partition. The valid
+# values are "train", "val" or "test", respectively.
 #
 # If all media sources are loaded via: projData <- loadProjData()
 # then the text loaded from the blogs file is accessible via:
@@ -81,13 +110,14 @@ partitionProjData <- function(workDir = dataDir,
 #
 loadProjData <- function(workDir = dataDir,
                          mLang = "en_US",
-                         srcMedium = c("blogs", "news", "twitter")) {
-    setwd(workDir)
-    tgtDir <- paste0(workDir, "final/", mLang, "/")
+                         srcMedium = c("blogs", "news", "twitter"),
+                         partition = "train") {
+    
+    srcDir <- getPartitionDir(partition)
     resultList = list()
     for(medium in srcMedium) {
-        srcFile <- paste0(tgtDir, mLang, ".", medium, ".txt")
-        print(srcFile)
+        srcFile <- getMDataFileNm(srcDir, srcMedium, partition)
+        print(paste0("Loading from file: ", srcFile))
         resultList[[medium]] <- reader::reader(srcFile)
     }
     resultList
@@ -99,13 +129,14 @@ loadProjData <- function(workDir = dataDir,
 sampleProjData <- function(workDir = dataDir,
                          mLang = "en_US",
                          srcMedium = c("blogs", "news", "twitter"),
+                         partition = "train",
                          nLines = 100, skipLines = 0) {
-    setwd(workDir)
-    tgtDir <- paste0(workDir, "final/", mLang, "/")
+
+    srcDir <- getPartitionDir(partition)
     resultList = list()
     for(medium in srcMedium) {
-        srcFile <- paste0(tgtDir, mLang, ".", medium, ".txt")
-        print(srcFile)
+        srcFile <- getMDataFileNm(srcDir, medium, partition)
+        print(paste0("Loading from file: ", srcFile))
         resultList[[medium]] <- n.readLines(srcFile, nLines, skip = skipLines, header = FALSE)
     }
     resultList
