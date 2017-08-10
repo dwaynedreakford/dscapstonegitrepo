@@ -124,7 +124,7 @@ ngramTokenizer <- function(n) {
         sentences <- tokenize_sentences(content(x), 
                                         lowercase = TRUE, 
                                         strip_punctuation = TRUE)
-        ngs <- tokenize_ngrams(unlist(sentences), FALSE, n)
+        ngs <- tokenize_ngrams(unlist(sentences), FALSE, n, stopwords = getBadWords())
         ngChar <- unlist(ngs)
         ngChar <- gsub("\\d+", "<#>", ngChar)
         ngChar
@@ -163,8 +163,7 @@ fullMediaCorpus <- function(mediaSource = c("blogs", "news", "twitter"),
 }
 
 dtmFromMCorpus <- function(mCorpus, n=3) {
-    mTokenizer <- ngramTokenizer(n)
-    DocumentTermMatrix(mCorpus, control = list(tokenize=mTokenizer, language="en"))
+    DocumentTermMatrix(mCorpus, control = list(tokenize=ngramTokenizer(n), language="en"))
 }
 
 # Returns a list where the elements are the model results of various
