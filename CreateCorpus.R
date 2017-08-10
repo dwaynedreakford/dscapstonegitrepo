@@ -71,34 +71,67 @@ pCorpusFromDF <- function(sourceDF,
                        dbControl = list(dbName=corpDBNm, dbType="DB1"))
 }
 
+# Summary of preprocessing performed here:
+# <<< NONE >>> This function remains here until I'm comfortable
+# that all the necessary preprocessing is done in `ngramTokenizer`.
+#
 preprocMCorpus <- function(mCorpus) {
 
-    # TODO
-    # - Sep hyphenated and slash words (must preceed 'removePunctuation')
-    # - Add EOS markers (must preceed 'removePunctuation')
-    #
-
+    # mCorpus <- tm_map(mCorpus, removeNumbers)
+    
     # Punctuation, numbers, case...
-    mCorpus <- tm_map(mCorpus, removePunctuation)
-    mCorpus <- tm_map(mCorpus, removeNumbers)
-    mCorpus <- tm_map(mCorpus, content_transformer(tolower))
+    # mCorpus <- tm_map(mCorpus, removePunctuation)
+    # mCorpus <- tm_map(mCorpus, content_transformer(tolower))
 
-    # Stopwords
-    # n-grams containing stopwords actually improve "predict next word"
-    # cability, so don't remove them here.
+    # Bad words
+    # n-grams containing many of the customary stopwords actually 
+    # improve "predict next word" cability, so take care to remove
+    # only those "bad" words that we don't want to predict.
+    #
     # mCorpus <- tm_map(mCorpus, removeWords, tm::stopwords())
 
     # Whitespace
-    mCorpus <- tm_map(mCorpus, stripWhitespace)
+    # mCorpus <- tm_map(mCorpus, stripWhitespace)
 
     # Other cleanup (as we learn more about the training data)...
     mCorpus
 }
 
-# Create a corpus from a sampling of the media data.
+# Create a compatible n-gram tokenizer. Base the approach on that shared
+# in the tm FAQ, but use tokenizers::tokenize_ngrams because, for me, it's
+# simpler.
 #
-# TODO: Use a variant of this to separate and load training, validation
-# and test data sets / corpora.
+# This approach is motivated by (http://tm.r-forge.r-project.org/faq.html#Bigrams):
+# BigramTokenizer <-
+#     function(x)
+#         unlist(lapply(ngrams(words(x), 2), paste, collapse = " "), use.names = FALSE)
+#
+# `ngramTokenizer` accepts a single Document from a Corpus and
+# returns a function that accepts the "n" in "n-gram". The anonymous
+# function does the following:
+# - Tokenize the document into sentences, removes punctuation
+#   from each sentence and converts all characters to lowercase.
+# - Tokenize each sentence into n-grams.
+# - Replace all numbers in n-grams with <#>.
+# - Return a named vector of n-grams.
+#
+# n - number of words in each gram (i.e., the "n" in "n-gram")
+# x - a Document from a Corpus. This will be passed to the
+#     anonymous function by `tm_map`
+#
+ngramTokenizer <- function(n) {
+    function(x) {
+        sentences <- tokenize_sentences(content(x), 
+                                        lowercase = TRUE, 
+                                        strip_punctuation = TRUE)
+        ngs <- tokenize_ngrams(unlist(sentences), FALSE, n)
+        ngChar <- unlist(ngs)
+        ngChar <- gsub("\\d+", "<#>", ngChar)
+        ngChar
+    }
+}
+
+# Create a corpus from a sampling of the media data.
 #
 sampleMediaCorpus <- function(sampleSize = 100, linesToSkip = 0,
                               mediaSource = c("blogs", "news", "twitter"),
@@ -134,21 +167,6 @@ dtmFromMCorpus <- function(mCorpus, n=3) {
     DocumentTermMatrix(mCorpus, control = list(tokenize=mTokenizer, language="en"))
 }
 
-# Create a compatible n-gram tokenizer. Base the approach on that shared
-# in the tm FAQ, but use tokenizers::tokenize_ngrams because, for me, it's
-# simpler.
-#
-# From the tm FAQ (http://tm.r-forge.r-project.org/faq.html#Bigrams):
-# BigramTokenizer <-
-#     function(x)
-#         unlist(lapply(ngrams(words(x), 2), paste, collapse = " "), use.names = FALSE)
-#
-# n - document from a Corpus
-#
-ngramTokenizer <- function(n) {
-    function(x) tokenize_ngrams(content(x), TRUE, n, simplify = TRUE)
-}
-
 # Returns a list where the elements are the model results of various
 # quick and dirty analyses, e.g. most/least freqent words,...
 #
@@ -180,8 +198,11 @@ exploreDTM <- function(dtm) {
 # appearance in the data.
 # 
 #
-frequencyList <- function(sampleSize = 1000, linesToSkip = 0, mediaSource = "blogs", n) {
-    mCorpus <- sampleMediaCorpus(sampleSize, linesToSkip, mediaSource)
+frequencyList <- function(sampleSize = 1000, linesToSkip = 0, 
+                          mediaSource = "blogs", dataPartition = "train",
+                          n) {
+    mCorpus <- sampleMediaCorpus(sampleSize, linesToSkip, 
+                                 mediaSource, dataPartition, FALSE)
     dtm <- dtmFromMCorpus(mCorpus, n)
     freqList <- exploreDTM(dtm)
     freqList
