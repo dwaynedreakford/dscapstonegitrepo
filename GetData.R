@@ -15,17 +15,35 @@ library(reader)
 # term matrices and perform further analysis.
 #
 
-courseDataUrl <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
-dataFileNm <- "Coursera-SwiftKey.zip"
 projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
 dataDir <- paste0(projDir, "data/")
 
-# Download and unzip the course data files
+courseDataUrl <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+dataFileNm <- "Coursera-SwiftKey.zip"
+
+# From Luis von Ahn (https://www.cs.cmu.edu/~biglou/)
+# "A list of 1,300+ English terms that could be found offensive."
+badwordsUrl <- "https://www.cs.cmu.edu/~biglou/resources/bad-words.txt"
+badwordsFileNm <- "badwords.txt"
+
+#
+# Download and unzip the course data files.
+#
+# Download "bad words" list.
+#
 downloadProjData <- function(dataUrl = courseDataUrl,
                              workDir = dataDir) {
     setwd(workDir)
     download.file(dataUrl, destfile = dataFileNm)
     unzip(dataFileNm)
+    
+    download.file(badwordsUrl, badwordsFileNm)
+}
+
+# Get "bad words" as a vector.
+getBadWords <- function(workDir = dataDir) {
+    setwd(workDir)
+    reader::reader(badwordsFileNm)
 }
 
 # Partition the data files into train, validation and test sets.
