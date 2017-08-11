@@ -152,13 +152,17 @@ sampleMediaCorpus <- function(sampleSize = 100, linesToSkip = 0,
 # Create a corpus from all of the available media data.
 #
 fullMediaCorpus <- function(mediaSource = c("blogs", "news", "twitter"), 
-                            dataPartition = "train") {
+                            dataPartition = "train",
+                            useDB = TRUE) {
 
     mList <- loadProjData(srcMedium = mediaSource, partition = dataPartition)
     mDF <- mListToDF(mList)
-    mCorpus <- pCorpusFromDF(mDF)
-    mCorpus <- preprocMCorpus(mCorpus)
+    if ( useDB == TRUE )
+        mCorpus <- pCorpusFromDF(mDF)
+    else
+        mCorpus <- vCorpusFromDF(mDF)
 
+    mCorpus <- preprocMCorpus(mCorpus)
     mCorpus
 }
 
