@@ -1,6 +1,9 @@
+# source(GetData.R)
+
 library(tm)
 library(tokenizers)
 library(filehash)
+library(slam)
 library(dplyr)
 library(ggplot2)
 
@@ -72,8 +75,7 @@ pCorpusFromDF <- function(sourceDF,
 }
 
 # Summary of preprocessing performed here:
-# <<< NONE >>> This function remains here until I'm comfortable
-# that all the necessary preprocessing is done in `ngramTokenizer`.
+# - None at present -
 #
 preprocMCorpus <- function(mCorpus) {
 
@@ -109,10 +111,10 @@ preprocMCorpus <- function(mCorpus) {
 # `ngramTokenizer` accepts a single Document from a Corpus and
 # returns a function that accepts the "n" in "n-gram". The anonymous
 # function does the following:
-# - Tokenize the document into sentences, removes punctuation
+# - Tokenize the document into sentences, converting to lowercase,
+#   and removing: non alphanumeric characters, punctuation.
 #   from each sentence and converts all characters to lowercase.
 # - Tokenize each sentence into n-grams.
-# - Replace all numbers in n-grams with <#>.
 # - Return a named vector of n-grams.
 #
 # n - number of words in each gram (i.e., the "n" in "n-gram")
@@ -126,7 +128,6 @@ ngramTokenizer <- function(n) {
                                         strip_punctuation = TRUE)
         ngs <- tokenize_ngrams(unlist(sentences), FALSE, n, stopwords = getBadWords())
         ngChar <- unlist(ngs)
-        ngChar <- gsub("\\d+", "<#>", ngChar)
         ngChar
     }
 }
@@ -167,20 +168,37 @@ fullMediaCorpus <- function(mediaSource = c("blogs", "news", "twitter"),
 }
 
 dtmFromMCorpus <- function(mCorpus, n=3) {
-    DocumentTermMatrix(mCorpus, control = list(tokenize=ngramTokenizer(n), language="en"))
+    # Lowercase transformation is done during sentence tokenization.
+    # Remove numbers here, and take all word lengths (e.g. "a" should be
+    # included).
+    DocumentTermMatrix(mCorpus, control = list(tokenize=ngramTokenizer(n), 
+                                               language="en",
+                                               tolower=FALSE,
+                                               removeNumbers=TRUE,
+                                               wordLengths=c(1, Inf)))
 }
 
+# 
+# This now uses `slam` algorithms to get summary stats on the DTM.
+# Turns out using things like "wFreq <- colSums(as.matrix(dtm))" was
+# crushing memory and crashing my laptop.
+#
+# Thank you, StackOverflow: https://stackoverflow.com/questions/21921422/row-sum-for-large-term-document-matrix-simple-triplet-matrix-tm-package
+#
 # Returns a list where the elements are the model results of various
 # quick and dirty analyses, e.g. most/least freqent words,...
 #
-exploreDTM <- function(dtm) {
+exploreDTM <- function(dtm, freqCutoff=2) {
     resultList = list()
 
-    # Most and least frequent n-grams
-    wFreq <- colSums(as.matrix(dtm))
-    resultList[["mostfreq"]] <- head(wFreq[order(wFreq, decreasing = TRUE)], 25)
-    resultList[["leastfreq"]] <- tail(wFreq[order(wFreq, decreasing = TRUE)], 25)
-    resultList[["freqdist"]] <- wFreq[order(wFreq, decreasing = TRUE)]
+    # Most frequent n-grams (No longer does the least. Instead, will
+    # Just prune those later.)
+    termSum <- col_sums(dtm)
+    resultList[["mostfreq"]] <- head(termSum[order(termSum, decreasing = TRUE)], 25)
+    resultList[["leastfreq"]] <- head(termSum[order(termSum)], 25)
+    resultList[["freqdist"]] <- termSum[order(termSum, decreasing = TRUE)]
+    pruneProspects <- termSum[termSum < freqCutoff]
+    resultList[["pruneprospects"]] <- pruneProspects[order(pruneProspects)]
     
     resultList
 }
