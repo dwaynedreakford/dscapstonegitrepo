@@ -21,23 +21,26 @@ dataDir <- paste0(projDir, "data/")
 courseDataUrl <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
 dataFileNm <- "Coursera-SwiftKey.zip"
 
-# From Luis von Ahn (https://www.cs.cmu.edu/~biglou/)
-# "A list of 1,300+ English terms that could be found offensive."
-badwordsUrl <- "https://www.cs.cmu.edu/~biglou/resources/bad-words.txt"
-badwordsFileNm <- "badwords.txt"
+# From https://www.freewebheaders.com/full-list-of-bad-words-banned-by-google/
+badwordsUrl <- "https://www.freewebheaders.com/wordpress/wp-content/uploads/full-list-of-bad-words-banned-by-google-txt-file.zip"
+badwordsFileZip <- "badwords.zip"
+badwordsFileNm <- "full-list-of-bad-words-banned-by-google-txt-file_2013_11_26.txt"
 
-#
 # Download and unzip the course data files.
-#
-# Download "bad words" list.
 #
 downloadProjData <- function(dataUrl = courseDataUrl,
                              workDir = dataDir) {
     setwd(workDir)
     download.file(dataUrl, destfile = dataFileNm)
     unzip(dataFileNm)
-    
-    download.file(badwordsUrl, badwordsFileNm)
+}
+
+# Download "bad words" list.
+#
+downloadBadWords <- function(workDir = dataDir) {
+    setwd(workDir)
+    download.file(badwordsUrl, destfile = badwordsFileZip)
+    unzip(badwordsFileZip, overwrite = TRUE)
 }
 
 # Get "bad words" as a vector.
@@ -165,14 +168,24 @@ sampleProjData <- function(workDir = dataDir,
 # - element name becomes the value in the msource column
 # - vector values become values in the mdata column
 #
-mListToDF <- function(mList) {
+# This results in a data frame, with the columns named by
+# `cnames`.
+#
+# NOTE: To produce a dataframe suitable as an input parameter
+# to the quanteda constructure `corpus(x, ...)`, specify
+# `cnames=c("doc_id", "text")`
+#
+qCNames <- c("doc_id", "text")
+mListToDF <- function(mList, cnames=c("msource", "mdata")) {
 
     resultDF = data.frame("msource" = character(0), "mdata" = character(0))
+    names(resultDF) <- cnames[1:2]
     for ( mSource in names(mList) ) {
-        resultDF <- rbind(resultDF,
-            data.frame("msource" = rep(mSource, length(mList[[mSource]])),
-                       "mdata" = mList[[mSource]],
-                       stringsAsFactors = FALSE))
+        tmpDF <- data.frame("msource" = rep(mSource, length(mList[[mSource]])),
+                            "mdata" = mList[[mSource]],
+                            stringsAsFactors = FALSE)
+        names(tmpDF) <- cnames[1:2]
+        resultDF <- rbind(resultDF, tmpDF)
     }
     resultDF
 }
