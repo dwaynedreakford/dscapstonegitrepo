@@ -132,6 +132,15 @@ ngramTokenizer <- function(n) {
     }
 }
 
+getNGrams <- function(inChar, n) {
+    sentences <- tokenize_sentences(inChar, 
+                                    lowercase = TRUE, 
+                                    strip_punctuation = TRUE)
+    ngs <- tokenize_ngrams(unlist(sentences), FALSE, n, stopwords = getBadWords())
+    ngChar <- unlist(ngs)
+    ngChar
+}
+
 # Create a corpus from a sampling of the media data.
 #
 sampleMediaCorpus <- function(sampleSize = 100, linesToSkip = 0,
