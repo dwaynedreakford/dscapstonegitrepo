@@ -139,7 +139,7 @@ loadProjData <- function(workDir = dataDir,
     for(medium in srcMedium) {
         srcFile <- getMDataFileNm(srcDir, medium, partition)
         print(paste0("Loading from file: ", srcFile))
-        resultList[[medium]] <- reader::reader(srcFile)
+        resultList[[medium]] <- iconv(reader::reader(srcFile), "", "ASCII", sub="")
     }
     resultList
 }
@@ -158,7 +158,8 @@ sampleProjData <- function(workDir = dataDir,
     for(medium in srcMedium) {
         srcFile <- getMDataFileNm(srcDir, medium, partition)
         print(paste0("Loading from file: ", srcFile))
-        resultList[[medium]] <- n.readLines(srcFile, nLines, skip = skipLines, header = FALSE)
+        resultList[[medium]] <- iconv(n.readLines(srcFile, nLines, skip = skipLines, header = FALSE),
+                                      "", "ASCII", sub="")
     }
     resultList
 }
