@@ -1,4 +1,6 @@
-# source(GetData.R)
+projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
+srcDir <- paste0(projDir, "capstonegitrepo/")
+source(paste0(srcDir, "GetData.R"))
 
 library(tm)
 library(tokenizers)
