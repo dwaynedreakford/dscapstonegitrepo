@@ -1,23 +1,26 @@
-# source(CreateCorpus.R)
-library(data.table)
-
 # Create the next-word prediction model for the Data Science Capstone Project
 # sponsored by SwiftKey and provided by Johns Hopkins University.
 
+projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
+srcDir <- paste0(projDir, "capstonegitrepo/")
+source(paste0(srcDir, "GetData.R"))
+source(paste0(srcDir, "CreateCorpus.R"))
+
+library(data.table)
 
 # Don't include ngrams that occur less than `freqCutoff` times in the
 # training data.
 # TODO: Look at frequency of frequencies for input on `freqCutoff`
 freqCutoff1 <- 5
-freqCutoffN <- 3
+freqCutoffN <- 2
 
 # Highest order of the model (and of ngram table to create).
-maxN <- 3
+maxN <- 4
 
 # Create and save to disk the ngram tables used for scoring
 # during prediction.
 #
-createNGramTables <- function(sampleSize=1000, mSource=c("blogs", "news"), partition) {
+createNGramTables <- function(sampleSize=1000, mSource=c("blogs", "news", "twitter"), partition) {
     workDir <- getPartitionDir(partition)
     setwd(workDir)
     print(paste(c("Working directory:", workDir), collapse=" "))
@@ -142,7 +145,7 @@ nextWordScores <- function(nOrder, ngPrefix, ngTables, alphaPow=1) {
     
     # If nOrder is 1, just rank unigrams
     if ( nOrder == 1 ) {
-        sbScores <- head(ngTable[order(-score)], 20)
+        sbScores <- head(ngTable[order(-score)], 40)
         if ( nrow(sbScores) > 0 ) {
             sbScores[, "score"] <- sbScores$score*alphaPow
         }
@@ -161,15 +164,15 @@ nextWordScores <- function(nOrder, ngPrefix, ngTables, alphaPow=1) {
         }
     }
     
-    head(sbScores[order(-score)], 20)
+    head(sbScores[order(-score)], 40)
 }
 
-predictionFlow <- function(testText = "that is") {
-    # To predict based on the last n words, we need the n+1 ngram table.
+predictionFlow <- function(prefixLen, testText, ngTables) {
+    # To predict based on the last n-1 words, we need the n-gram table.
     # I.e., to predict the third word, we need two words of input
-    predInput <- lastNWords(2, testText)
-    sbScores <- nextWordScores(2+1, predInput, ngTables)
-    sbScores
+    predInput <- lastNWords(prefixLen, testText)
+    sbScores <- nextWordScores(prefixLen+1, predInput, ngTables)
+    sbScores[order(-score)]
 }
 
 
