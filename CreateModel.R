@@ -11,14 +11,14 @@ library(data.table)
 # Don't include ngrams that occur less than `freqCutoff` times in the
 # training data.
 # TODO: Look at frequency of frequencies for input on `freqCutoff`
-freqCutoff1 <- 5
-freqCutoffN <- 2
+freqCutoff <- 3
 
 # Highest order of the model (and of ngram table to create).
 maxN <- 4
 
 # Create and save to disk the ngram tables used for scoring
-# during prediction.
+# during prediction. To include all available data for the 
+# specified `mSource`, set `sampleSize=Inf`.
 #
 createNGramTables <- function(sampleSize=1000, mSource=c("blogs", "news", "twitter"), partition) {
     workDir <- getPartitionDir(partition)
@@ -26,7 +26,8 @@ createNGramTables <- function(sampleSize=1000, mSource=c("blogs", "news", "twitt
     print(paste(c("Working directory:", workDir), collapse=" "))
     
     print("Creating ngram tables...")
-    print(paste(c("maxN:", maxN, "sampleSize:", sampleSize), collapse=" "))
+    print(paste0(c("maxN: ", maxN), collapse=""))
+    print(paste0(c("sampleSize: ", sampleSize), collapse=""))
     
     # "n-1" term vector (used to calc scores for the n term vector).
     minus1tc <- integer()
@@ -34,14 +35,22 @@ createNGramTables <- function(sampleSize=1000, mSource=c("blogs", "news", "twitt
         
         # Create the DTM and n term vector.
         print(paste(c("Creating DTM... n=", nVal), collapse=""))
-        mdtm <- dtmFromMCorpus(sampleMediaCorpus(sampleSize=sampleSize, mediaSource = mSource), nVal)
+        mdtm <- NULL
+        if ( sampleSize==Inf )
+            mdtm <- dtmFromMCorpus(
+                fullMediaCorpus(mediaSource = mSource, dataPartition = partition, useDB = FALSE),
+                nVal)
+        else
+            mdtm <- dtmFromMCorpus(
+                sampleMediaCorpus(sampleSize = sampleSize, mediaSource = mSource, dataPartition = partition),
+                nVal)
+        
         tc <- col_sums(mdtm)
         print(paste(c("Total ", nVal, "-grams: ", length(tc)), collapse=""))
         rm(mdtm)
         gc()
         
         # Prune terms with counts below the frequency cutoff.
-        freqCutoff <- ifelse(nVal==1, freqCutoff1, freqCutoffN)
         tc <- tc[tc > freqCutoff-1]
         print(paste("Frequency cutoff: ", freqCutoff), collapse="")
         print(paste(c("Remaining ", nVal, "-grams: ", length(tc)), collapse=""))
@@ -119,8 +128,8 @@ lastNWords <- function(howMany, inText) {
 
 # Predict the next word...
 #
-# - `nOrder` is the order (e.g., 3, 4) of ngram lookup table with 
-#    which to start the search for a matching `nOrder-1` word prefix. 
+# - `ngOrder` is the order (e.g., 3, 4) of ngram lookup table with 
+#    which to start the search for a matching `ngOrder-1` word prefix. 
 #    For example: 
 #    + To predict the third word, the input must be two words, and 
 #      we start the search with the trigram lookup table, seeking
@@ -132,39 +141,39 @@ lastNWords <- function(howMany, inText) {
 #   `lastNWords`
 #
 sbAlpha <- 0.4
-nextWordScores <- function(nOrder, ngPrefix, ngTables, alphaPow=1) {
-    if ( length(ngTables) < nOrder ) 
-        stop(paste0(nOrder, " Ngram tables are needed to predict based on ", nOrder-1, " words."))
+nextWordScores <- function(ngOrder, ngPrefix, ngTables, numResults=20, alphaPow=1) {
+    if ( length(ngTables) < ngOrder ) 
+        stop(paste0(ngOrder, " Ngram tables are needed to predict based on the most recent ", ngOrder-1, " words."))
 
     print(paste0("Seeking next-word scores for prefix: ", ngPrefix))
-    print(paste0("nOrder=", nOrder))
+    print(paste0("ngOrder=", ngOrder))
     
     # Get the lookup table.
-    ngTable <- ngTables[[nOrder]]
+    ngTable <- ngTables[[ngOrder]]
     sbScores <- data.frame(nextword=character(0), score=numeric(0))
     
-    # If nOrder is 1, just rank unigrams
-    if ( nOrder == 1 ) {
-        sbScores <- head(ngTable[order(-score)], 40)
+    # If ngOrder is 1, just rank unigrams
+    if ( ngOrder == 1 ) {
+        sbScores <- head(ngTable[order(-score)], numResults)
         if ( nrow(sbScores) > 0 ) {
             sbScores[, "score"] <- sbScores$score*alphaPow
         }
     }
     # Otherwise, seek a match among the prefixes. Continue
-    # the search in the `nOrder-1` ngram table if none are found.
-    else if ( nOrder > 1 ) {
+    # the search in the `ngOrder-1` ngram table if none are found.
+    else if ( ngOrder > 1 ) {
         sbScores <- ngTable[prefix==ngPrefix]
         if ( nrow(sbScores) > 0 ) {
             sbScores[, "score"] <- sbScores$score*alphaPow
         }
         else {
-            minus1gram <- lastNWords(nOrder-2, ngPrefix)
+            minus1gram <- lastNWords(ngOrder-2, ngPrefix)
             sba <- sbAlpha * alphaPow
-            sbScores <- nextWordScores(nOrder-1, minus1gram, ngTables, sba)
+            sbScores <- nextWordScores(ngOrder-1, minus1gram, ngTables, sba)
         }
     }
     
-    head(sbScores[order(-score)], 40)
+    head(sbScores[order(-score)], numResults)
 }
 
 predictionFlow <- function(prefixLen, testText, ngTables) {
@@ -173,6 +182,15 @@ predictionFlow <- function(prefixLen, testText, ngTables) {
     predInput <- lastNWords(prefixLen, testText)
     sbScores <- nextWordScores(prefixLen+1, predInput, ngTables)
     sbScores[order(-score)]
+}
+
+ngTablesSize <- function (ngTables) {
+    ngTablesSize <- sum(sapply(ngTables, function(x) object.size(x)))
+    print(paste0("Ngram Tables Size: ", format(ngTablesSize/1000000, digits=5), " Mb"))
+    for ( idx in 1:length(ngTables) ) {
+        print(paste0(idx, "-gram Table Size (M): ", 
+                     format(object.size(ngTables[idx]), units="Mb", justify="right")))
+    }
 }
 
 
