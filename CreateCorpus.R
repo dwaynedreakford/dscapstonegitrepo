@@ -77,11 +77,18 @@ pCorpusFromDF <- function(sourceDF,
 }
 
 # Summary of preprocessing performed here:
-# - None at present -
+# - Remove numbers
+# - Remove URLs
 #
 preprocMCorpus <- function(mCorpus) {
 
-    # mCorpus <- tm_map(mCorpus, removeNumbers)
+    # Remove numbers
+    mCorpus <- tm_map(mCorpus, removeNumbers)
+    
+    # Remove URLs
+    # Code from: https://stackoverflow.com/questions/41109773/gsub-function-in-tm-package-to-remove-urls-does-not-remove-the-entire-string
+    removeURL <- content_transformer(function(x) gsub("(f|ht)tp(s?)://\\S+", "", x, perl=T))
+    mCorpus <- tm_map(mCorpus, removeURL)
     
     # Punctuation, numbers, case...
     # mCorpus <- tm_map(mCorpus, removePunctuation)
@@ -98,6 +105,7 @@ preprocMCorpus <- function(mCorpus) {
     # mCorpus <- tm_map(mCorpus, stripWhitespace)
 
     # Other cleanup (as we learn more about the training data)...
+    
     mCorpus
 }
 
@@ -185,7 +193,6 @@ dtmFromMCorpus <- function(mCorpus, n=3) {
     DocumentTermMatrix(mCorpus, control = list(tokenize=ngramTokenizer(n), 
                                                language="en",
                                                tolower=FALSE,
-                                               removeNumbers=TRUE,
                                                wordLengths=c(1, Inf)))
 }
 
