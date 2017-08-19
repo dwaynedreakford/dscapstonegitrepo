@@ -214,6 +214,11 @@ predictionFlow <- function(ngOrder, testText, ngTables, numResults=20) {
         predPrefix <- lastNWords(ngOrder-1, testText)
         tmpScores <- nextWordScores(ngOrder, predPrefix, ngTables, numResults, sbAlpha)
         if ( nrow(tmpScores) > 0 ) {
+            if ( nrow(sbScores) > 0 ) {
+                # Remove scores for `nextword`s already in the scoring table.
+                dupPredictions <- tmpScores$nextword %in% sbScores$nextword
+                tmpScores <- tmpScores[!(dupPredictions)]
+            }
             sbScores <- rbind(sbScores, tmpScores,
                               deparse.level = 0, make.row.names = FALSE, stringsAsFactors = FALSE)
             rm(tmpScores)
