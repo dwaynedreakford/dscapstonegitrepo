@@ -126,6 +126,14 @@ lastNWords <- function(howMany, inText) {
     paste0(lastwords, collapse = " ")
 }
 
+scoresTable <- function() {
+    data.frame(
+        prefix=character(0), 
+        nextword=character(0), 
+        score=numeric(0), 
+        stringsAsFactors = FALSE)
+}
+
 # Predict the next word...
 #
 # - `ngOrder` is the order (e.g., 3, 4) of ngram lookup table with 
@@ -137,51 +145,92 @@ lastNWords <- function(howMany, inText) {
 #    + To predict the next word given no input, we simply return 
 #      the highest ranking unigram scores (from the unigram table).
 #
-# - `ngPrefix` should be a character vector of length 1 produced by
-#   `lastNWords`
+# - `ngPrefix` is the `ngOrder -1`-word string used to predict the next
+#    word. This should be a character vector of length 1 produced by
+#   `lastNWords()`.
 #
-sbAlpha <- 0.4
-nextWordScores <- function(ngOrder, ngPrefix, ngTables, numResults=20, alphaPow=1) {
+# Returns a scores table (see `scoresTable()`)
+#
+nextWordScores <- function(ngOrder, ngPrefix, ngTables, numResults, cumAlpha=1) {
     if ( length(ngTables) < ngOrder ) 
         stop(paste0(ngOrder, " Ngram tables are needed to predict based on the most recent ", ngOrder-1, " words."))
 
     print(paste0("Seeking next-word scores for prefix: ", ngPrefix))
     print(paste0("ngOrder=", ngOrder))
     
-    # Get the lookup table.
+    # Get the lookup table and create the scores table.
     ngTable <- ngTables[[ngOrder]]
-    sbScores <- data.frame(nextword=character(0), score=numeric(0))
+    sbScores <- scoresTable()
     
-    # If ngOrder is 1, just rank unigrams
+    # If ngOrder is 1, just rank unigrams.
+    # The bit with `tmpScores` is to create the `prefix` variable/column
+    # in the result scoring table (`prefix`) is not present in the 
+    # unigram table.
     if ( ngOrder == 1 ) {
-        sbScores <- head(ngTable[order(-score)], numResults)
-        if ( nrow(sbScores) > 0 ) {
-            sbScores[, "score"] <- sbScores$score*alphaPow
+        tmpScores <- head(ngTable[order(-score)], numResults)
+        if ( nrow(tmpScores) > 0 ) {
+            sbScores <- data.frame(
+                prefix=character(0), 
+                nextword=tmpScores$nextword, 
+                score=tmpScores$score, 
+                stringsAsFactors = FALSE)
+            sbScores[, "score"] <- sbScores$score*cumAlpha
+            rm(tmpScores)
         }
     }
-    # Otherwise, seek a match among the prefixes. Continue
-    # the search in the `ngOrder-1` ngram table if none are found.
+    # Otherwise, seek a match among the prefixes.
     else if ( ngOrder > 1 ) {
         sbScores <- ngTable[prefix==ngPrefix]
         if ( nrow(sbScores) > 0 ) {
-            sbScores[, "score"] <- sbScores$score*alphaPow
-        }
-        else {
-            minus1gram <- lastNWords(ngOrder-2, ngPrefix)
-            sba <- sbAlpha * alphaPow
-            sbScores <- nextWordScores(ngOrder-1, minus1gram, ngTables, sba)
+            sbScores[, "score"] <- sbScores$score*cumAlpha
         }
     }
     
-    head(sbScores[order(-score)], numResults)
+    sbScores    
 }
 
-predictionFlow <- function(prefixLen, testText, ngTables) {
-    # To predict based on the last n-1 words, we need the n-gram table.
-    # I.e., to predict the third word, we need two words of input
-    predInput <- lastNWords(prefixLen, testText)
-    sbScores <- nextWordScores(prefixLen+1, predInput, ngTables)
-    sbScores[order(-score)]
+# Call the prediction algorithm, given the specified prefix length
+# and test text. The test text should contain at least `prefixLen`
+# words. This function attempts to return at least `numResults` 
+# results.
+#
+# The returned value is a scoring table, where each row includes:
+# - `prefix` if applicable (otherwise NA)
+# - `nextword` the prediced next word
+# - `score` the score associated with the prediction
+#
+# The results are evaluated and, if we have less than `numResults` 
+# scores and the current ngram order is >= 1, the prediction algorithm 
+# is called again, at the next lowest ngram order.
+#
+predictionFlow <- function(ngOrder, testText, ngTables, numResults=20) {
+
+    sbScores <- scoresTable()
+    sbAlpha <- 1.0
+    while ( ngOrder > 0 ) {
+        # Get the predictions
+        # To predict based on the last n-1 words, we need the n-gram table.
+        # E.g., to predict based on the last 2 words, we need the 3-gram table.
+        predPrefix <- lastNWords(ngOrder-1, testText)
+        tmpScores <- nextWordScores(ngOrder, predPrefix, ngTables, numResults, sbAlpha)
+        if ( nrow(tmpScores) > 0 ) {
+            sbScores <- rbind(sbScores, tmpScores,
+                              deparse.level = 0, make.row.names = FALSE, stringsAsFactors = FALSE)
+            rm(tmpScores)
+        }
+        
+        if ( nrow(sbScores) >= numResults )
+            break
+
+        # If we need to call `nextWordScores` again to get more results, 
+        # we need to call it with the next lowest ngram order, and the
+        # resulting scores need to be scaled by `sbAlpha` in proportion
+        # to how many levels we "back off".
+        ngOrder <- ngOrder - 1
+        sbAlpha <- sbAlpha * 0.4
+    }
+    
+    head(sbScores[order(sbScores$score, decreasing = TRUE)], numResults)
 }
 
 ngTablesSize <- function (ngTables) {
