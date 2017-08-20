@@ -28,6 +28,8 @@ createNGramTables <- function(sampleSize=1000, mSource=c("blogs", "news", "twitt
     print("Creating ngram tables...")
     print(paste0(c("maxN: ", maxN), collapse=""))
     print(paste0(c("sampleSize: ", sampleSize), collapse=""))
+    startTime <- Sys.time()
+    print(paste0("Start time: ", startTime))
     
     # "n-1" term vector (used to calc scores for the n term vector).
     minus1tc <- integer()
@@ -88,6 +90,10 @@ createNGramTables <- function(sampleSize=1000, mSource=c("blogs", "news", "twitt
         rm(tc)
         gc()
     } # for (nVal in 1:maxN)
+    
+    endTime <- Sys.time()
+    print(paste0("End time: ", endTime))
+    difftime(endTime, startTime)
 }
 
 loadNgTables <- function(partition) {
@@ -169,8 +175,8 @@ nextWordScores <- function(ngOrder, ngPrefix, ngTables, numResults, cumAlpha=1) 
     if ( ngOrder == 1 ) {
         tmpScores <- head(ngTable[order(-score)], numResults)
         if ( nrow(tmpScores) > 0 ) {
-            sbScores <- data.frame(
-                prefix=character(0), 
+            sbScores <- data.table(
+                prefix=character(nrow(tmpScores)), 
                 nextword=tmpScores$nextword, 
                 score=tmpScores$score, 
                 stringsAsFactors = FALSE)
@@ -211,7 +217,10 @@ predictionFlow <- function(ngOrder, testText, ngTables, numResults=20) {
         # Get the predictions
         # To predict based on the last n-1 words, we need the n-gram table.
         # E.g., to predict based on the last 2 words, we need the 3-gram table.
-        predPrefix <- lastNWords(ngOrder-1, testText)
+        if ( ngOrder > 1 )
+            predPrefix <- lastNWords(ngOrder-1, testText)
+        else
+            predPrefix <- character(0)
         tmpScores <- nextWordScores(ngOrder, predPrefix, ngTables, numResults, sbAlpha)
         if ( nrow(tmpScores) > 0 ) {
             if ( nrow(sbScores) > 0 ) {
