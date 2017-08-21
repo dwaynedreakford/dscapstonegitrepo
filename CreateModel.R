@@ -142,8 +142,8 @@ scoresTable <- function() {
 
 # Predict the next word...
 #
-# - `ngOrder` is the order (e.g., 3, 4) of ngram lookup table with 
-#    which to start the search for a matching `ngOrder-1` word prefix. 
+# - `ngLevel` is the order (e.g., 3, 4) of ngram lookup table with 
+#    which to start the search for a matching `ngLevel-1` word prefix. 
 #    For example: 
 #    + To predict the third word, the input must be two words, and 
 #      we start the search with the trigram lookup table, seeking
@@ -151,28 +151,28 @@ scoresTable <- function() {
 #    + To predict the next word given no input, we simply return 
 #      the highest ranking unigram scores (from the unigram table).
 #
-# - `ngPrefix` is the `ngOrder -1`-word string used to predict the next
+# - `ngPrefix` is the `ngLevel -1`-word string used to predict the next
 #    word. This should be a character vector of length 1 produced by
 #   `lastNWords()`.
 #
 # Returns a scores table (see `scoresTable()`)
 #
-nextWordScores <- function(ngOrder, ngPrefix, ngTables, numResults, cumAlpha=1) {
-    if ( length(ngTables) < ngOrder ) 
-        stop(paste0(ngOrder, " Ngram tables are needed to predict based on the most recent ", ngOrder-1, " words."))
+nextWordScores <- function(ngLevel, ngPrefix, ngTables, numResults, cumAlpha=1) {
+    if ( length(ngTables) < ngLevel ) 
+        stop(paste0(ngLevel, " Ngram tables are needed to predict based on the most recent ", ngLevel-1, " words."))
 
     print(paste0("Seeking next-word scores for prefix: ", ngPrefix))
-    print(paste0("ngOrder=", ngOrder))
+    print(paste0("ngLevel=", ngLevel))
     
     # Get the lookup table and create the scores table.
-    ngTable <- ngTables[[ngOrder]]
+    ngTable <- ngTables[[ngLevel]]
     sbScores <- scoresTable()
     
-    # If ngOrder is 1, just rank unigrams.
+    # If ngLevel is 1, just rank unigrams.
     # The bit with `tmpScores` is to create the `prefix` variable/column
     # in the result scoring table (`prefix`) is not present in the 
     # unigram table.
-    if ( ngOrder == 1 ) {
+    if ( ngLevel == 1 ) {
         tmpScores <- head(ngTable[order(-score)], numResults)
         if ( nrow(tmpScores) > 0 ) {
             sbScores <- data.table(
@@ -185,7 +185,7 @@ nextWordScores <- function(ngOrder, ngPrefix, ngTables, numResults, cumAlpha=1) 
         }
     }
     # Otherwise, seek a match among the prefixes.
-    else if ( ngOrder > 1 ) {
+    else if ( ngLevel > 1 ) {
         sbScores <- ngTable[prefix==ngPrefix]
         if ( nrow(sbScores) > 0 ) {
             sbScores[, "score"] <- sbScores$score*cumAlpha
@@ -209,19 +209,19 @@ nextWordScores <- function(ngOrder, ngPrefix, ngTables, numResults, cumAlpha=1) 
 # scores and the current ngram order is >= 1, the prediction algorithm 
 # is called again, at the next lowest ngram order.
 #
-predictionFlow <- function(ngOrder, testText, ngTables, numResults=20) {
+predictionFlow <- function(ngLevel, testText, ngTables, numResults=20) {
 
     sbScores <- scoresTable()
     sbAlpha <- 1.0
-    while ( ngOrder > 0 ) {
+    while ( ngLevel > 0 ) {
         # Get the predictions
         # To predict based on the last n-1 words, we need the n-gram table.
         # E.g., to predict based on the last 2 words, we need the 3-gram table.
-        if ( ngOrder > 1 )
-            predPrefix <- lastNWords(ngOrder-1, testText)
+        if ( ngLevel > 1 )
+            predPrefix <- lastNWords(ngLevel-1, testText)
         else
             predPrefix <- character(0)
-        tmpScores <- nextWordScores(ngOrder, predPrefix, ngTables, numResults, sbAlpha)
+        tmpScores <- nextWordScores(ngLevel, predPrefix, ngTables, numResults, sbAlpha)
         if ( nrow(tmpScores) > 0 ) {
             if ( nrow(sbScores) > 0 ) {
                 # Remove scores for `nextword`s already in the scoring table.
@@ -240,7 +240,7 @@ predictionFlow <- function(ngOrder, testText, ngTables, numResults=20) {
         # we need to call it with the next lowest ngram order, and the
         # resulting scores need to be scaled by `sbAlpha` in proportion
         # to how many levels we "back off".
-        ngOrder <- ngOrder - 1
+        ngLevel <- ngLevel - 1
         sbAlpha <- sbAlpha * 0.4
     }
     
@@ -254,6 +254,10 @@ ngTablesSize <- function (ngTables) {
         print(paste0(idx, "-gram Table Size (M): ", 
                      format(object.size(ngTables[idx]), units="Mb", justify="right")))
     }
+}
+
+evalPredictionModel <- function() {
+    
 }
 
 
