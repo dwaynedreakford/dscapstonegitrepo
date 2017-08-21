@@ -20,7 +20,7 @@ maxN <- 4
 # during prediction. To include all available data for the 
 # specified `mSource`, set `sampleSize=Inf`.
 #
-createNGramTables <- function(sampleSize=1000, mSource=c("blogs", "news", "twitter"), partition) {
+createNGramTables <- function(sampleSize=1000, mSource=c("blogs", "news"), partition) {
     workDir <- getPartitionDir(partition)
     setwd(workDir)
     print(paste(c("Working directory:", workDir), collapse=" "))
@@ -120,6 +120,9 @@ lastNWords <- function(howMany, inText) {
     if ( length(inText) != 1 ) stop("Argument `inText` must be a character vector of length 1.")
     if ( howMany > maxN ) stop(paste0("Argument `howMany` cannot be greater than `maxN` (", maxN, ")", collapse=""))
     
+    if ( howMany == 0 )
+        return(character(1))
+    
     wordTokens <- getNGrams(inText, 1)
     lastwords <- character(0)
     if ( length(wordTokens) >= howMany ) {
@@ -196,7 +199,7 @@ nextWordScores <- function(ngLevel, ngPrefix, ngTables, numResults, cumAlpha=1) 
 }
 
 # Call the prediction algorithm, given the specified prefix length
-# and test text. The test text should contain at least `prefixLen`
+# and input text. The input text should contain at least `prefixLen`
 # words. This function attempts to return at least `numResults` 
 # results.
 #
@@ -209,19 +212,23 @@ nextWordScores <- function(ngLevel, ngPrefix, ngTables, numResults, cumAlpha=1) 
 # scores and the current ngram order is >= 1, the prediction algorithm 
 # is called again, at the next lowest ngram order.
 #
-predictionFlow <- function(ngLevel, testText, ngTables, numResults=20) {
+predictionFlow <- function(ngLevel, inputText, ngTables, numResults=20) {
 
     sbScores <- scoresTable()
     sbAlpha <- 1.0
+    words <- getNGrams(inputText, 1)
     while ( ngLevel > 0 ) {
         # Get the predictions
         # To predict based on the last n-1 words, we need the n-gram table.
         # E.g., to predict based on the last 2 words, we need the 3-gram table.
-        if ( ngLevel > 1 )
-            predPrefix <- lastNWords(ngLevel-1, testText)
-        else
-            predPrefix <- character(0)
-        tmpScores <- nextWordScores(ngLevel, predPrefix, ngTables, numResults, sbAlpha)
+        if ( ngLevel == 1 ) {
+            tmpScores <- nextWordScores(ngLevel, "", ngTables, numResults, sbAlpha)
+        }
+        else {
+            prefixLen <- ngLevel-1
+            inWords <- words[(length(words)-prefixLen+1):length(words)]
+            tmpScores <- nextWordScores(ngLevel, paste0(inWords, collapse=" "), ngTables, numResults, sbAlpha)
+        }
         if ( nrow(tmpScores) > 0 ) {
             if ( nrow(sbScores) > 0 ) {
                 # Remove scores for `nextword`s already in the scoring table.
@@ -256,9 +263,63 @@ ngTablesSize <- function (ngTables) {
     }
 }
 
-evalPredictionModel <- function() {
+evalSBOModel <- function(ngLevel, ngTables, 
+                                sampleSize=1000, mediaSource=c("blogs", "news"), partition) {
     
+    mList <- list()
+    if ( sampleSize == Inf )
+        mList <- loadProjData(dataDir, "en_US", mediaSource, partition)
+    else
+        mList <- sampleProjData(dataDir, "en_US", mediaSource, partition, sampleSize)
+    
+    inputLen <- ngLevel-1
+    sboResults <- data.table(
+        medium = character(0),
+        nlevel = integer(0),
+        input = character(0),
+        nextword = character(0),
+        top3 = logical(0),
+        top5 = logical(0),
+        top15 = logical(0)
+    )
+    for ( medium in mediaSource ) {
+        for ( mLine in mList[[medium]] ) {
+            mWords <- getNGrams(mLine, 1)
+            for ( wordIdx in 1:(length(mWords)-inputLen) ) {
+                inputWords <- paste0(mWords[wordIdx:(wordIdx+inputLen-1)], collapse=" ")
+                nextWord <- mWords[wordIdx+inputLen]
+                sbScores <- predictionFlow(ngLevel, inputWords, ngTables, 15)
+                top3 <- nextWord %in% sbScores$nextword[1:3]
+                top5 <- ifelse(top3, TRUE, nextWord %in% sbScores$nextword[4:5])
+                top15 <- ifelse(top5, TRUE, nextWord %in% sbScores$nextword[6:15])
+                sbResult <- data.table(
+                    "medium" = medium,
+                    nlevel = ngLevel,
+                    input = inputWords,
+                    nextword = nextWord,
+                    "top3" = top3,
+                    "top5" = top5,
+                    "top15" = top15
+                )
+                sboResults <- rbindlist(list(sboResults, sbResult))
+                rm(sbResult)
+            }
+        }
+    }
+    
+    sboResults
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
