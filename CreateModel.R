@@ -108,8 +108,24 @@ loadNgTables <- function(partition) {
     ngTables
 }
 
+loadEvalTables <- function(partition) {
+    setwd(getPartitionDir(partition))
+    evalTables <- list()
+    for ( nVal in 1:maxN ) {
+        evalTblFile <- getEvalTblFileNm(nVal)
+        print(paste0("Loading eval table from file: ", evalTblFile, collapse = ""))
+        evalTbl <- readRDS(evalTblFile)
+        evalTables[[nVal]] <- evalTbl
+    }
+    evalTables
+}
+
 getNgTblFileNm <- function(nVal) {
     paste0("ng_", nVal, "_tbl.rds")
+}
+
+getEvalTblFileNm <- function(nVal) {
+    paste0("ng_", nVal, "_eval_tbl.rds")
 }
 
 # Get the last `howMany` words from `inText`.
@@ -164,7 +180,10 @@ nextWordScores <- function(ngLevel, ngPrefix, ngTables, numResults, cumAlpha=1) 
     if ( length(ngTables) < ngLevel ) 
         stop(paste0(ngLevel, " Ngram tables are needed to predict based on the most recent ", ngLevel-1, " words."))
 
-    print(paste0("Seeking next-word scores for prefix: ", ngPrefix))
+    if ( ngLevel > 1 )
+        print(paste0("Seeking next-word scores for prefix: ", ngPrefix))
+    else
+        print(paste0("Ranking unigrams (no prefix)"))
     print(paste0("ngLevel=", ngLevel))
     
     # Get the lookup table and create the scores table.
@@ -216,7 +235,9 @@ predictionFlow <- function(ngLevel, inputText, ngTables, numResults=20) {
 
     sbScores <- scoresTable()
     sbAlpha <- 1.0
-    words <- getNGrams(inputText, 1)
+    words <- ""
+    if ( ngLevel > 1 )
+        words <- getNGrams(inputText, 1)
     while ( ngLevel > 0 ) {
         # Get the predictions
         # To predict based on the last n-1 words, we need the n-gram table.
@@ -263,6 +284,25 @@ ngTablesSize <- function (ngTables) {
     }
 }
 
+evalSBOModels <- function(sampleSize=Inf,
+                          mediaSource=c("blogs", "news"), partition) {
+
+    ngTables <- loadNgTables("train")
+    print(paste0("Generating eval tables for all available (", length(ngTables), ") model levels...",
+                 collapse=""))
+    saveDir <- getPartitionDir(partition)
+    print(paste0("Saving eval tables to: ", saveDir,
+                 collapse=""))
+
+    for ( ngLevel in length(ngTables):1 ) {
+        sboResults <- evalSBOModel(ngLevel, ngTables, sampleSize, mediaSource, partition)
+        resultFile <- paste0(saveDir, getEvalTblFileNm(ngLevel), collapse="")
+        print(paste0("Writing eval table: ", resultFile, collapse=""))
+        saveRDS(sboResults, file = resultFile)
+        rm(sboResults)
+    }
+}
+
 evalSBOModel <- function(ngLevel, ngTables, 
                                 sampleSize=1000, mediaSource=c("blogs", "news"), partition) {
     
@@ -285,9 +325,21 @@ evalSBOModel <- function(ngLevel, ngTables,
     for ( medium in mediaSource ) {
         for ( mLine in mList[[medium]] ) {
             mWords <- getNGrams(mLine, 1)
+            if ( length(mWords) < inputLen ) {
+                print(paste0("Not enough words (", length(mWords), 
+                             ") available for nLevel=", ngLevel, " prediction. Skipping line.",
+                             collapse=""))
+                next
+            }
+            # print(paste0("Word range: 1 to ", (length(mWords)-inputLen), collapse=""))
             for ( wordIdx in 1:(length(mWords)-inputLen) ) {
-                inputWords <- paste0(mWords[wordIdx:(wordIdx+inputLen-1)], collapse=" ")
+                # print(paste0("wordIdx: ", wordIdx, collapse=""))
+                inputWords <- ""
+                if ( ngLevel > 1 )
+                    inputWords <- paste0(mWords[wordIdx:(wordIdx+inputLen-1)], collapse=" ")
                 nextWord <- mWords[wordIdx+inputLen]
+                if ( length(nextWord) == 0 ) next
+                
                 sbScores <- predictionFlow(ngLevel, inputWords, ngTables, 15)
                 top3 <- nextWord %in% sbScores$nextword[1:3]
                 top5 <- ifelse(top3, TRUE, nextWord %in% sbScores$nextword[4:5])
@@ -303,6 +355,7 @@ evalSBOModel <- function(ngLevel, ngTables,
                 )
                 sboResults <- rbindlist(list(sboResults, sbResult))
                 rm(sbResult)
+                rm(sbScores)
             }
         }
     }
