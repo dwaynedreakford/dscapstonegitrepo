@@ -1,13 +1,11 @@
-projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
-srcDir <- paste0(projDir, "capstonegitrepo/")
-source(paste0(srcDir, "GetData.R"))
-
 library(tm)
 library(tokenizers)
 library(filehash)
 library(slam)
 library(dplyr)
 library(ggplot2)
+
+# projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
 
 #
 # Data location and loading is performed via functions in GetData.R.

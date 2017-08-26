@@ -15,8 +15,8 @@ library(reader)
 # term matrices and perform further analysis.
 #
 
-projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
-dataDir <- paste0(projDir, "data/")
+# projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
+# dataDir <- paste0(projDir, "data/")
 
 courseDataUrl <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
 dataFileNm <- "Coursera-SwiftKey.zip"

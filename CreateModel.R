@@ -1,12 +1,9 @@
 # Create the next-word prediction model for the Data Science Capstone Project
 # sponsored by SwiftKey and provided by Johns Hopkins University.
 
-projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
-srcDir <- paste0(projDir, "capstonegitrepo/")
-source(paste0(srcDir, "GetData.R"))
-source(paste0(srcDir, "CreateCorpus.R"))
-
 library(data.table)
+
+# projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
 
 # Don't include ngrams that occur less than `freqCutoff` times in the
 # training data.
