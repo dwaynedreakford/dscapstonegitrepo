@@ -6,15 +6,20 @@
 #
 #    http://shiny.rstudio.com/
 #
-projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
-srcDir <- paste0(projDir, "capstonegitrepo/")
-source(paste0(srcDir, "CreateModel.R"))
-
 library(shiny)
+
+source("GetData.R", local = TRUE)
+source("CreateCorpus.R", local = TRUE)
+source("CreateModel.R", local = TRUE)
+
+# Load the ngram tables once per R session
+projDir <- "./"
+dataDir <- "./"
+ngTables <- loadNgTables(".")
 
 ui <- fluidPage(
     # Stylesheet from [Bootswatch](https://bootswatch.com/)
-    theme = "bootstrap.solar.css",
+    theme = "bootstrap.flatly.css",
                 
    # Application title
    titlePanel("Next-Word Predictor"),
@@ -47,9 +52,6 @@ ui <- fluidPage(
       )
    )
 )
-
-# Load the ngram tables once per R session
-ngTables <- loadNgTables("train")
 
 server <- function(input, output) {
     
@@ -106,23 +108,11 @@ server <- function(input, output) {
     }, bordered = TRUE)
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Run the application 
 shinyApp(ui = ui, server = server)
+
+
+
+
 
 
