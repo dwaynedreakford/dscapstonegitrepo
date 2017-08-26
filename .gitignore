@@ -3,3 +3,23 @@ milestonereport/CapstoneMilestoneReport_cache/
 milestonereport/CapstoneMilestoneReport_files/
 
 milestonereport/rsconnect/documents/CapstoneMilestoneReport.Rmd/rpubs.com/
+
+shinyapp/NextWordPrediction/.RData
+
+shinyapp/NextWordPrediction/.Rhistory
+
+shinyapp/NextWordPrediction/CreateCorpus.R
+
+shinyapp/NextWordPrediction/CreateModel.R
+
+shinyapp/NextWordPrediction/GetData.R
+
+shinyapp/NextWordPrediction/full-list-of-bad-words-banned-by-google-txt-file_2013_11_26.txt
+
+shinyapp/NextWordPrediction/ng_1_tbl.rds
+
+shinyapp/NextWordPrediction/ng_2_tbl.rds
+
+shinyapp/NextWordPrediction/ng_3_tbl.rds
+
+shinyapp/NextWordPrediction/ng_4_tbl.rds
