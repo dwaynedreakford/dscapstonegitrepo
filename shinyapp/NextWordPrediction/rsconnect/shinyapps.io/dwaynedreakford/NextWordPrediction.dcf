@@ -1,0 +1,11 @@
+name: NextWordPrediction
+title: NextWordPrediction
+account: dwaynedreakford
+server: shinyapps.io
+appId: 207589
+bundleId: 954835
+url: https://dwaynedreakford.shinyapps.io/NextWordPrediction/
+when: 1503680725.30341
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: .RData|www/.DS_Store|www/bootstrap.solar.css
