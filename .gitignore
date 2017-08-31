@@ -23,3 +23,5 @@ shinyapp/NextWordPrediction/ng_2_tbl.rds
 shinyapp/NextWordPrediction/ng_3_tbl.rds
 
 shinyapp/NextWordPrediction/ng_4_tbl.rds
+
+*.dcf
