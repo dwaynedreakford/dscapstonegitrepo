@@ -2,8 +2,10 @@
 # sponsored by SwiftKey and provided by Johns Hopkins University.
 
 library(data.table)
+library(dplyr)
 
 # projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
+# dataDir <- paste0(projDir, "data/")
 
 # Don't include ngrams that occur less than `freqCutoff` times in the
 # training data.
@@ -110,7 +112,7 @@ loadEvalTables <- function(partition) {
     evalTables <- list()
     for ( nVal in 1:maxN ) {
         evalTblFile <- getEvalTblFileNm(nVal)
-        print(paste0("Loading eval table from file: ", evalTblFile, collapse = ""))
+        # print(paste0("Loading eval table from file: ", evalTblFile, collapse = ""))
         evalTbl <- readRDS(evalTblFile)
         evalTables[[nVal]] <- evalTbl
     }
@@ -282,15 +284,27 @@ ngTablesSize <- function (ngTables) {
 }
 
 evalSBOModels <- function(sampleSize=Inf,
-                          mediaSource=c("blogs", "news"), partition) {
+                          mediaSource=c("blogs", "news"), partition, profiling=FALSE) {
 
-    ngTables <- loadNgTables("train")
-    print(paste0("Generating eval tables for all available (", length(ngTables), ") model levels...",
-                 collapse=""))
     saveDir <- getPartitionDir(partition)
     print(paste0("Saving eval tables to: ", saveDir,
                  collapse=""))
+    
+    # Enable execution and memory profiling
+    if ( profiling == TRUE ) {
+        profileFile <- paste0(saveDir, "Rprof.out")
+        print(paste0("Saving profiling data to: ", profileFile))
+        Rprof(filename=profileFile, memory.profiling=TRUE)
+    }
 
+    # Load the ngram model tables
+    ngTables <- loadNgTables("train")
+    print(paste0("Generating eval tables for all available (", length(ngTables), ") model levels...",
+                 collapse=""))
+
+    # Evaluate each ngram model's accuracy
+    # (and performance characteristics, which should about the same
+    # for each).
     for ( ngLevel in length(ngTables):1 ) {
         sboResults <- evalSBOModel(ngLevel, ngTables, sampleSize, mediaSource, partition)
         resultFile <- paste0(saveDir, getEvalTblFileNm(ngLevel), collapse="")
@@ -298,6 +312,9 @@ evalSBOModels <- function(sampleSize=Inf,
         saveRDS(sboResults, file = resultFile)
         rm(sboResults)
     }
+    
+    # Turn off profiling
+    if ( profiling == TRUE ) Rprof(filename=NULL)
 }
 
 evalSBOModel <- function(ngLevel, ngTables, 
@@ -358,6 +375,75 @@ evalSBOModel <- function(ngLevel, ngTables,
     }
     
     sboResults
+}
+
+
+# print.data.frame(evalSBOAccuracy(evalTables))
+evalSBOAccuracy <- function(sboEvalTables) {
+    accuracyList <- list()
+    for ( ngLevel in maxN:1 ) {
+        evalTbl <- sboEvalTables[[ngLevel]]
+        accuracyList[[as.character(ngLevel)]] <- evalTbl %>% 
+            summarise(Top3 = round(mean(top3) * 100, 2),
+                      Top5 = round(mean(top5) * 100, 2), 
+                      Top15 = round(mean(top15) * 100, 2))
+    }
+    accuracyTbl <- rbindlist(accuracyList)
+    accuracyTbl$Label <- paste0(nrow(accuracyTbl):1, "-gram Accuracy (%)")
+    # row.names(accuracyTbl) <- paste0(nrow(accuracyTbl):1, "-gram Accuracy: ")
+    accuracyTbl
+}
+
+#
+# Set dataDir and projDir before calling
+#
+profileSBOModel <- function(saveDir = getwd(), inputText) {
+
+    # Load the ngram model tables
+    profileFile <- paste0(saveDir, "/NgTableLoad.Rprof.out")
+    print(paste0("Saving table load profiling data to: ", profileFile))
+    Rprof(filename=profileFile, memory.profiling=TRUE)
+    
+    ngTables <- loadNgTables("train")
+    Rprof(filename=NULL)
+
+    # Parse input and predict
+    profileFile <- paste0(saveDir, "/Predict.Rprof.out")
+    print(paste0("Saving parse/prediction profiling data to: ", profileFile))
+    Rprof(filename=profileFile, memory.profiling=TRUE)
+    
+    inWords <- getNGrams(inputText, 1)
+    inputLen <- 0
+    predInput <- ""
+    if ( length(inWords) >= maxN-1 ) {
+        inputLen <- maxN-1
+        predInput <- inWords[(length(inWords)-inputLen+1):length(inWords)]
+    }
+    else {
+        if ( length(inWords) > 0 ) {
+            inputLen <- length(inWords)
+            predInput <- inWords
+        }
+    }
+    # print(paste0("Prediction input: (", paste0(predInput, collapse=" "), ")"))
+    # print(paste0("Input length: (", inputLen, ")"))
+    
+    # Predict
+    sbScores <- predictionFlow(inputLen+1, paste0(predInput, collapse=" "), ngTables, 5)
+
+    Rprof(filename=NULL)
+    sbScores
+}
+
+runProfilerExample <- function(inputText = "I wonder how many times") {
+    projDir <- "~/Documents/Projects/DataScience/CapstoneProject_JHSK/"
+    dataDir <- paste0(projDir, "data/")
+    profileSBOModel(saveDir = dataDir, inputText)
+}
+
+viewProfileExample <- function() {
+    profvis::profvis(prof_input = "~/Documents/Projects/DataScience/CapstoneProject_JHSK/data//NgTableLoad.Rprof.out")
+    profvis::profvis(prof_input = "~/Documents/Projects/DataScience/CapstoneProject_JHSK/data//Predict.Rprof.out")
 }
 
 
